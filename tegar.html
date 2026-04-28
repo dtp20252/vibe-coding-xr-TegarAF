@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <title>TIAR: Simulasi Pre-CT Scan - XR Blocks</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
+    <script>
+      window.litDisableBundleWarning = true;
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/",
+          "troika-three-text": "https://cdn.jsdelivr.net/gh/protectwise/troika@028b81cf308f0f22e5aa8e78196be56ec1997af5/packages/troika-three-text/src/index.js",
+          "troika-three-utils": "https://cdn.jsdelivr.net/gh/protectwise/troika@v0.52.4/packages/troika-three-utils/src/index.js",
+          "troika-worker-utils": "https://cdn.jsdelivr.net/gh/protectwise/troika@v0.52.4/packages/troika-worker-utils/src/index.js",
+          "bidi-js": "https://esm.sh/bidi-js@%5E1.0.2?target=es2022",
+          "webgl-sdf-generator": "https://esm.sh/webgl-sdf-generator@1.1.1/es2022/webgl-sdf-generator.mjs",
+          "lit": "https://cdn.jsdelivr.net/gh/lit/dist@3/core/lit-core.min.js",
+          "lit/": "https://esm.run/lit@3/",
+          "xrblocks": "https://cdn.jsdelivr.net/npm/xrblocks@0.11.0/build/xrblocks.js",
+          "xrblocks/addons/": "https://cdn.jsdelivr.net/npm/xrblocks@0.11.0/build/addons/",
+          "@google/genai": "https://cdn.jsdelivr.net/npm/@google/genai/+esm"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <!-- Latar belakang ruangan rumah sakit virtual yang ditenangkan -->
+    <div class="background-image" style="background-color: #e0f2fe;"></div>
+
+    <script type="module">
+      import 'xrblocks/addons/simulator/SimulatorAddons.js';
+      import * as THREE from 'three';
+      import * as xb from 'xrblocks';
+
+      /**
+       * Aplikasi TIAR: Mengurangi kecemasan pasien kanker payudara 
+       * sebelum masuk ruangan CT Scan melalui simulasi, relaksasi, dan edukasi AI.
+       */
+      class TIARApp extends xb.Script {
+        constructor() {
+          super();
+          this.time = 0;
+          this.isProcessingAI = false;
+        }
+
+        init() {
+          // 1. Pencahayaan Ruangan Klinis yang Tenang
+          this.add(new THREE.HemisphereLight(0xffffff, 0xb0c4de, 2.5));
+          const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+          dirLight.position.set(2, 5, 3);
+          this.add(dirLight);
+
+          // 2. Bangun Mesin CT Scan Prosedural (Virtual Room Preview)
+          this.buildCTScanner();
+
+          // 3. Bangun Modul Relaksasi & Pernapasan (Kiri)
+          this.buildBreathingModule();
+
+          // 4. Bangun AI Chatbot Edukasi (Kanan)
+          this.buildAIPanel();
+
+          // Teks Judul Utama
+          this.createMainTitle();
+        }
+
+        createMainTitle() {
+          const titlePanel = new xb.SpatialPanel({
+            width: 2.0, height: 0.3, backgroundColor: '#0ea5e9cc'
+          });
+          titlePanel.position.set(0, 2.2, -2.5);
+          this.add(titlePanel);
+
+          titlePanel.addGrid().addRow().addText({
+            text: 'TIAR: Adaptasi Ruangan CT Scan',
+            fontSize: 0.1,
+            fontColor: '#ffffff'
+          });
+        }
+
+        /**
+         * Membangun representasi mesin CT scan agar pasien familiar (Desensitisasi Sistematis)
+         */
+        buildCTScanner() {
+          this.ctGroup = new THREE.Group();
+
+          // Gantry (Badan Utama Mesin)
+          const gantryGeo = new THREE.BoxGeometry(2.2, 2.2, 0.6);
+          const gantryMat = new THREE.MeshPhongMaterial({ color: 0xf8fafc, shininess: 80 });
+          const gantry = new THREE.Mesh(gantryGeo, gantryMat);
+          gantry.position.set(0, 1.1, -3);
+          this.ctGroup.add(gantry);
+
+          // Bore (Lubang tempat pasien masuk)
+          const boreGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.62, 32);
+          const boreMat = new THREE.MeshPhongMaterial({ color: 0x1e293b, side: THREE.DoubleSide });
+          const bore = new THREE.Mesh(boreGeo, boreMat);
+          bore.rotation.x = Math.PI / 2;
+          bore.position.set(0, 1.1, -3);
+          this.ctGroup.add(bore);
+
+          // Ring Indikator (Dekorasi dalam lorong)
+          const ringGeo = new THREE.TorusGeometry(0.61, 0.02, 16, 64);
+          const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+          this.boreRing = new THREE.Mesh(ringGeo, ringMat);
+          this.boreRing.position.set(0, 1.1, -2.7);
+          this.ctGroup.add(this.boreRing);
+
+          // Bed (Kasur Pasien)
+          const bedGeo = new THREE.BoxGeometry(0.5, 0.1, 2.5);
+          const bedMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8 });
+          this.ctBed = new THREE.Mesh(bedGeo, bedMat);
+          // Posisi awal kasur di luar lorong
+          this.ctBed.position.set(0, 0.6, -1.5);
+          this.ctGroup.add(this.ctBed);
+
+          // Pasien Dummy (Bentuk sederhana)
+          const dummyGeo = new THREE.CapsuleGeometry(0.15, 0.6, 16, 16);
+          const dummyMat = new THREE.MeshPhongMaterial({ color: 0xbfdbfe });
+          const dummy = new THREE.Mesh(dummyGeo, dummyMat);
+          dummy.rotation.x = Math.PI / 2;
+          dummy.position.set(0, 0.15, 0.3); // Relatif terhadap bed
+          this.ctBed.add(dummy);
+
+          this.add(this.ctGroup);
+        }
+
+        /**
+         * Modul Guided Breathing untuk menurunkan Cortisol / Kecemasan
+         */
+        buildBreathingModule() {
+          const breathPanel = new xb.SpatialPanel({
+            width: 1.0, height: 1.0, backgroundColor: '#0f172acc'
+          });
+          breathPanel.position.set(-1.8, 1.4, -2.0);
+          breathPanel.rotation.y = Math.PI / 6;
+          this.add(breathPanel);
+
+          const grid = breathPanel.addGrid();
+          grid.addRow({weight: 0.2}).addText({
+            text: 'Modul Relaksasi',
+            fontSize: 0.08,
+            fontColor: '#34d399'
+          });
+
+          this.breathText = grid.addRow({weight: 0.2}).addText({
+            text: 'Tarik Napas...',
+            fontSize: 0.06,
+            fontColor: '#ffffff'
+          });
+
+          grid.addRow({weight: 0.6}); // Ruang kosong untuk bola 3D
+
+          // Bola visualisasi pernapasan
+          this.breathSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.25, 32, 32),
+            new THREE.MeshPhongMaterial({ color: 0x34d399, transparent: true, opacity: 0.8, shininess: 100 })
+          );
+          // Posisikan bola di depan panel relaksasi
+          this.breathSphere.position.set(-1.8, 1.2, -1.8);
+          this.add(this.breathSphere);
+        }
+
+        /**
+         * Panel AI Edukasi untuk menjawab ketakutan pasien (Trauma/Informasi)
+         */
+        buildAIPanel() {
+          const aiPanel = new xb.SpatialPanel({
+            width: 1.5, height: 1.5, backgroundColor: '#1e1b4bcc'
+          });
+          aiPanel.position.set(1.8, 1.4, -2.0);
+          aiPanel.rotation.y = -Math.PI / 6;
+          this.add(aiPanel);
+
+          const grid = aiPanel.addGrid();
+          grid.addRow({weight: 0.15}).addText({
+            text: 'Tanya Asisten AI',
+            fontSize: 0.08,
+            fontColor: '#a78bfa'
+          });
+
+          // Layar Respon
+          const responseRow = grid.addRow({weight: 0.55});
+          this.aiResponseText = new xb.ScrollingTroikaTextView({
+            text: 'Halo, saya Asisten TIAR.\nTekan tombol di bawah untuk mengetahui lebih lanjut tentang prosedur CT Scan Anda.',
+            fontSize: 0.045,
+            fontColor: '#e2e8f0'
+          });
+          responseRow.add(this.aiResponseText);
+
+          // Tombol Pertanyaan Pre-defined
+          const btnGrid1 = grid.addRow({weight: 0.15}).addGrid();
+          const btn1 = btnGrid1.addCol({weight: 0.5}).addTextButton({
+            text: 'Apakah rasanya sakit?', backgroundColor: '#4c1d95', fontSize: 0.15
+          });
+          const btn2 = btnGrid1.addCol({weight: 0.5}).addTextButton({
+            text: 'Berapa lama prosesnya?', backgroundColor: '#4c1d95', fontSize: 0.15
+          });
+
+          const btnGrid2 = grid.addRow({weight: 0.15}).addGrid();
+          const btn3 = btnGrid2.addCol({weight: 1.0}).addTextButton({
+            text: 'Kenapa lorongnya sempit?', backgroundColor: '#4c1d95', fontSize: 0.15
+          });
+
+          // Event Listeners
+          btn1.onTriggered = () => this.askAI("Tolong jelaskan secara singkat dan menenangkan kepada pasien kanker payudara: Apakah proses CT scan itu sakit?");
+          btn2.onTriggered = () => this.askAI("Tolong jelaskan secara singkat kepada pasien: Berapa lama rata-rata proses CT scan kanker payudara berlangsung di dalam mesin?");
+          btn3.onTriggered = () => this.askAI("Pasien merasa klaustrofobia. Tolong jelaskan secara menenangkan kenapa mesin CT scan memiliki lorong melingkar dan yakinkan bahwa mereka aman.");
+        }
+
+        async askAI(question) {
+          if (this.isProcessingAI || !xb.core.ai?.isAvailable()) {
+            this.aiResponseText.setText("AI sedang memproses atau API belum tersedia...");
+            return;
+          }
+
+          this.isProcessingAI = true;
+          this.aiResponseText.setText("🤖 Sedang mengetik...");
+
+          try {
+            const parts = [{ text: question }];
+            const response = await xb.core.ai.query({
+              type: 'multiPart',
+              parts: parts,
+            });
+            this.aiResponseText.setText(`🤖 AI:\n${response.text}`);
+          } catch (error) {
+            this.aiResponseText.setText(`❌ Error: ${error.message}\nPastikan API Key GenAI sudah dimasukkan di Canvas.`);
+          }
+
+          this.isProcessingAI = false;
+        }
+
+        update() {
+          super.update();
+          const dt = xb.getDeltaTime();
+          this.time += dt;
+
+          // --- Animasi 1: Mesin CT Scan ---
+          // Simulasi kasur yang masuk dan keluar secara perlahan (Siklus 10 detik)
+          const bedCycle = Math.sin(this.time * 0.6); // Range -1 to 1
+          // Mapping -1..1 ke posisi Z -1.5 (luar) sampai -2.8 (dalam bore)
+          const zPos = -2.15 + (bedCycle * 0.65); 
+          this.ctBed.position.z = zPos;
+
+          // Putar ring indikator mesin
+          if (this.boreRing) {
+            this.boreRing.rotation.z -= 2.0 * dt;
+          }
+
+          // --- Animasi 2: Modul Breathing ---
+          // Siklus pernapasan (Kira-kira 4 detik tarik napas, 4 detik hembus)
+          const breathCycle = Math.sin(this.time * 0.8);
+          
+          // Skala bola relaksasi
+          const scale = 1.0 + (breathCycle * 0.4);
+          this.breathSphere.scale.set(scale, scale, scale);
+
+          // Update Teks Instruksi Pernapasan
+          if (breathCycle > 0) {
+            this.breathText.setText('Tarik Napas Dalam...');
+            this.breathText.fontColor = '#34d399'; // Hijau menenangkan
+          } else {
+            this.breathText.setText('Hembuskan Perlahan...');
+            this.breathText.fontColor = '#60a5fa'; // Biru menenangkan
+          }
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const options = new xb.Options();
+        options.enableUI();
+        options.enableAI(); // Mengaktifkan modul Gemini AI untuk Chatbot
+        
+        // Simulasikan pengalaman duduk/berdiri di ruang tunggu
+        options.simulator.defaultMode = xb.SimulatorMode.POSE;
+        
+        xb.add(new TIARApp());
+        xb.init(options);
+      });
+    </script>
+  </body>
+</html>
